@@ -8,8 +8,6 @@ from scipy.signal import argrelextrema
 from dash import Dash, dcc, html
 from dash.dependencies import Output, Input
 import plotly.graph_objects as go
-import math
-from scipy.stats import norm
 
 # Inicializar MetaTrader 5
 if not mt5.initialize():
@@ -25,7 +23,6 @@ timeframes = {
     'M1': mt5.TIMEFRAME_M1   # Usaremos M1 para generar M5
 }
 
-
 # Configuración de símbolo y marco temporal
 symbol = "Volatility 100 Index"  # Cambia el símbolo si es necesario
 timeframe = mt5.TIMEFRAME_M5  # Temporalidad 5 minutos
@@ -36,8 +33,6 @@ open_position = None
 open_price = None
 cumulative_profit = 0  # Beneficio acumulado
 operation_history = []
-
-
 
 # Función para obtener datos en tiempo real
 def fetch_data(symbol, timeframe):
@@ -94,12 +89,6 @@ def simulate_trades(data):
                 open_price = None
 
     return data
-
-
-
-
-
-
 
 # Función para convertir datos de M1 a M5
 def convert_to_m5(data):
@@ -214,6 +203,7 @@ def generate_figure(data, timeframe_name):
         template='plotly_dark'
     )
     return fig
+
 def ultimos_puntos(data):
     """
     Determina si el último punto es alcista, bajista o neutro.
@@ -236,71 +226,13 @@ def ultimos_puntos(data):
         print("El último punto es neutro")
         return "Neutro"
 
-# Clase Black-Scholes
-class BlackScholes:
-    def __init__(self, time_to_maturity, strike, current_price, volatility, interest_rate):
-        self.time_to_maturity = time_to_maturity
-        self.strike = strike
-        self.current_price = current_price
-        self.volatility = volatility
-        self.interest_rate = interest_rate
-
-    def calculate_prices(self):
-        d1 = (math.log(self.current_price / self.strike) +
-              (self.interest_rate + 0.5 * self.volatility ** 2) * self.time_to_maturity) / \
-             (self.volatility * math.sqrt(self.time_to_maturity))
-        d2 = d1 - self.volatility * math.sqrt(self.time_to_maturity)
-
-        call_price = (self.current_price * norm.cdf(d1) -
-                      self.strike * math.exp(-self.interest_rate * self.time_to_maturity) * norm.cdf(d2))
-        put_price = (self.strike * math.exp(-self.interest_rate * self.time_to_maturity) * norm.cdf(-d2) -
-                     self.current_price * norm.cdf(-d1))
-        return call_price, put_price
-
-
-
 # Crear la aplicación Dash
 app = Dash(__name__)
 app.layout = html.Div([
-
-    # Controles de entrada para Black-Scholes
-    html.Div([
-        html.H3("Calculadora de Opciones (Black-Scholes)"),
-        html.Label("Precio Actual del Activo:"),
-        dcc.Input(id='current-price', type='number', value=100.0, step=0.1),
-        html.Label("Precio de Ejercicio:"),
-        dcc.Input(id='strike-price', type='number', value=100.0, step=0.1),
-        html.Label("Volatilidad (%):"),
-        dcc.Input(id='volatility', type='number', value=20.0, step=0.1),
-        html.Label("Tasa de Interés Libre de Riesgo (%):"),
-        dcc.Input(id='interest-rate', type='number', value=5.0, step=0.1),
-        html.Label("Tiempo hasta el Vencimiento (años):"),
-        dcc.Input(id='time-to-maturity', type='number', value=1.0, step=0.1),
-        html.Button('Calcular Opciones', id='calculate-options', n_clicks=0)
-    ], style={'margin-bottom': '20px'}),
-    # Resultados de las opciones
-    html.Div(id='options-output', style={'margin-top': '20px', 'text-align': 'center'}),
-
-
-
-    # Controles para ajustar el eje Y
-    html.Div([
-        html.H3("Ajustar eje Y:", style={'text-align': 'center'}),
-        html.Label("Mínimo del eje Y:", style={'display': 'block', 'text-align': 'center'}),
-        dcc.Input(id='y-axis-min', type='number', value=None, placeholder="Ingrese valor mínimo",
-                  style={'margin': '0 auto', 'display': 'block'}),
-        html.Label("Máximo del eje Y:", style={'display': 'block', 'text-align': 'center'}),
-        dcc.Input(id='y-axis-max', type='number', value=None, placeholder="Ingrese valor máximo",
-                  style={'margin': '0 auto', 'display': 'block'}),
-        html.Button('Actualizar', id='update-button', style={'margin': '0 auto', 'display': 'block'}),
-    ], style={'margin-bottom': '20px', 'text-align': 'center'}),
-    
     # Fila de gráficos
     html.Div([
         html.Div([
             dcc.Graph(id='live-graph-D1', style={'height': '500px'}),
-            #html.H4("Gráfico D1", style={'text-align': 'center'})
-            
         ], style={
             'flex': '1',
             'margin': '5 px',
@@ -309,10 +241,8 @@ app.layout = html.Div([
             'text-align': 'center',
             'box-shadow': '0 2px 4px rgba(0, 0, 0, 0.1)'
         }),
-         #html.Div(id='tendencia-D1', style={'text-align': 'center', 'margin-top': '10px'})
         html.Div([
             dcc.Graph(id='live-graph-H1', style={'height': '500px'}),
-            #html.H4("Gráfico H1", style={'text-align': 'center'})
         ], style={
             'flex': '1',
             'margin': '1px',
@@ -321,10 +251,8 @@ app.layout = html.Div([
             'text-align': 'center',
             'box-shadow': '0 2px 4px rgba(0, 0, 0, 0.1)'
         }),
-
         html.Div([
             dcc.Graph(id='live-graph-M5', style={'height': '500px'}),
-            #html.H4("Gráfico M5", style={'text-align': 'center'})
         ], style={
             'flex': '1',
             'margin': '1px',
@@ -374,11 +302,9 @@ app.layout = html.Div([
     dcc.Interval(id='update-interval', interval=90*1000, n_intervals=0)  # Actualización cada 1.5 minutos
 ])
 
-# Callback para actualizar las gráficas
 # Callback para actualizar las gráficas y las tendencias
 @app.callback(
     [
-        Output('options-output', 'children'),
         Output('live-graph-H1', 'figure'),
         Output('live-graph-D1', 'figure'),
         Output('live-graph-M5', 'figure'),
@@ -386,43 +312,18 @@ app.layout = html.Div([
         Output('tendencia-H1', 'children'),
         Output('tendencia-M5', 'children')
     ],
-    [
-        Input('calculate-options', 'n_clicks'),
-        Input('update-interval', 'n_intervals'),
-        Input('y-axis-min', 'value'),
-        Input('y-axis-max', 'value')
-    ],
-    [
-        Input('current-price', 'value'),
-        Input('strike-price', 'value'),
-        Input('volatility', 'value'),
-        Input('interest-rate', 'value'),
-        Input('time-to-maturity', 'value')
-    ]
+    [Input('update-interval', 'n_intervals')]
 )
-def update_graphs_and_trends(n_clicks, n_intervals, y_min, y_max, current_price, strike, volatility, interest_rate, time_to_maturity):
-    # Inicializamos las variables para los resultados
-    options_output = "Sin cálculos de opciones"
+def update_graphs_and_trends(n_intervals):
     figures = []
     trends = []
     
-    # 1. Calcular precios de opciones si el botón fue presionado
-    if n_clicks > 0:
-        volatility /= 100  # Convertir a porcentaje
-        interest_rate /= 100
-        bs = BlackScholes(time_to_maturity, strike, current_price, volatility, interest_rate)
-        call_price, put_price = bs.calculate_prices()
-        options_output = html.Div([
-            html.H4(f"Precio CALL: ${call_price:.2f}"),
-            html.H4(f"Precio PUT: ${put_price:.2f}")
-        ])
-
-    # 2. Actualizar gráficas y tendencias
+    # Actualizar gráficas y tendencias
     for timeframe_name, timeframe in timeframes.items():
         data = fetch_and_update_data(timeframe_name, timeframe)
         if not data.empty:
-            # Generar la figura con ajuste dinámico del eje Y
-            figure = generate_figure_with_y_adjustment(data, timeframe_name, y_min, y_max)
+            # Generar la figura
+            figure = generate_figure(data, timeframe_name)
             trend = ultimos_puntos(data)
         else:
             figure = go.Figure()  # Figura vacía si no hay datos
@@ -431,9 +332,8 @@ def update_graphs_and_trends(n_clicks, n_intervals, y_min, y_max, current_price,
         figures.append(figure)
         trends.append(f"Tendencia: {trend}")
 
-    # 3. Devolver resultados
+    # Devolver resultados
     return (
-        options_output,
         figures[1],  # Gráfico H1
         figures[0],  # Gráfico D1
         figures[2],  # Gráfico M5
@@ -441,34 +341,6 @@ def update_graphs_and_trends(n_clicks, n_intervals, y_min, y_max, current_price,
         trends[1],   # Tendencia H1
         trends[2]    # Tendencia M5
     )
-# Función para generar una gráfica con ajuste dinámico del eje Y
-def generate_figure_with_y_adjustment(data, timeframe_name, y_min, y_max):
-    fig = generate_figure(data, timeframe_name)  # Reutiliza la función original
-    # Ajustar el eje Y si se proporcionan valores
-    fig.update_layout(
-        yaxis=dict(
-            range=[y_min, y_max] if y_min is not None and y_max is not None else None,
-            autorange=True if y_min is None or y_max is None else False
-        )
-    )
-    return fig
-def calculate_options(n_clicks, current_price, strike, volatility, interest_rate, time_to_maturity):
-    if n_clicks > 0:
-        # Convertir volatilidad y tasa de interés a proporciones
-        volatility /= 100
-        interest_rate /= 100
-
-        # Crear objeto Black-Scholes
-        bs = BlackScholes(time_to_maturity, strike, current_price, volatility, interest_rate)
-        call_price, put_price = bs.calculate_prices()
-
-        return html.Div([
-            html.H4(f"Precio CALL: ${call_price:.2f}"),
-            html.H4(f"Precio PUT: ${put_price:.2f}")
-        ])
-    return "Ingresa los parámetros y haz clic en 'Calcular Opciones'"
-
-
 
 # Ejecutar la aplicación
 if __name__ == '__main__':
