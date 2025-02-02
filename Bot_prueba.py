@@ -1,7 +1,7 @@
 import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
-from dash import Dash, html, dcc, Input, Output, dash_table
+from dash import Dash, html, dcc, Input, Output
 import plotly.graph_objects as go
 from scipy.signal import savgol_filter
 import os
@@ -30,16 +30,49 @@ def process_data(file_path):
         return pd.DataFrame()  # Devuelve un DataFrame vacío si el archivo no existe
     
     data['time'] = pd.to_datetime(data['time'])
+    # Suavizado con Savitzky-Golay
     data['smoothed_close'] = savgol_filter(data['close'], window_length=15, polyorder=3)
+    # Gradiente y señal
     data['derivative'] = np.gradient(data['smoothed_close'])
     data['signal'] = (data['derivative'] > 0).astype(int)
+    # Detectar cambios e incorporar la distancia
     data = detect_signal_changes(data)
+    
+    # Calcular la distancia de la señal
+    data['signal_distance'] = np.nan  # Inicializar la columna
+    change_indices = data.index[data['signal_change'] != 0].tolist()
+    
+    for idx in change_indices:
+        if idx < data.index[-1]:
+            next_idx = idx + 1
+            current_close = data.loc[idx, 'close']
+            next_close = data.loc[next_idx, 'close']
+            
+            if data.loc[idx, 'signal_change'] == 1:
+                distance = next_close - current_close
+            else:
+                distance = current_close - next_close
+
+            data.loc[idx, 'signal_distance'] = distance
+    
     return data
 
-# Detectar cambios en la señal (transiciones de 1 a 0 o de 0 a 1)
+# Detectar cambios en la señal
 def detect_signal_changes(data):
     data['signal_change'] = data['signal'].diff().fillna(0)
     data['change_points'] = np.where(data['signal_change'] != 0, data['smoothed_close'], np.nan)
+    data['after_change_block'] = (data['signal_change'] != 0).cumsum()
+    
+    # Identificar la primera fila de cada bloque (punto de cambio)
+    data['is_first_in_block'] = data.groupby('after_change_block').cumcount() == 0
+    
+    # Calcular señales post-cambio excluyendo el primer elemento del bloque
+    buy_signals = data[~data['is_first_in_block']].groupby('after_change_block')['signal'].apply(lambda x: (x == 1).sum())
+    sell_signals = data[~data['is_first_in_block']].groupby('after_change_block')['signal'].apply(lambda x: (x == 0).sum())
+    
+    data['post_change_buy'] = data['after_change_block'].map(buy_signals)
+    data['post_change_sell'] = data['after_change_block'].map(sell_signals)
+    
     return data
 
 # Actualizar datos de MetaTrader 5
@@ -61,54 +94,87 @@ def update_data(symbol, timeframe, file_path):
 def simulate_trading(data, initial_balance=50, position_size=0.5):
     global trade_history
     balance = initial_balance
-    position = 0  # Representa la cantidad de activos comprados
+    position = 0
 
     for i, row in data.iterrows():
-        if row['signal_change'] == 1:  # Cambio de venta (0) a compra (1)
+        if row['is_first_in_block']:
+            continue  # Ignorar puntos de cambio
+        
+        # Lógica de compra
+        if row['signal'] == 1:
             units = (balance * position_size) / row['close']
             balance -= units * row['close']
-            position += units
             trade_history.append({
-                'time': row['time'], 'action': 'BUY', 'price': row['close'],
-                'units': units, 'balance': balance
+                'time': row['time'],
+                'action': 'BUY',
+                'price': row['close'],
+                'units': units,
+                'balance': balance
             })
-        elif row['signal_change'] == -1 and position > 0:  # Cambio de compra (1) a venta (0)
+            position += units
+        
+        # Lógica de venta
+        elif row['signal'] == 0 and position > 0:
             balance += position * row['close']
             trade_history.append({
-                'time': row['time'], 'action': 'SELL', 'price': row['close'],
-                'units': position, 'balance': balance
+                'time': row['time'],
+                'action': 'SELL',
+                'price': row['close'],
+                'units': position,
+                'balance': balance
             })
             position = 0
 
-    # Guardar resultados en un archivo CSV
+    # Cerrar posición al final si queda abierta
+    if position > 0:
+        balance += position * data.iloc[-1]['close']
+        trade_history.append({
+            'time': data.iloc[-1]['time'],
+            'action': 'SELL',
+            'price': data.iloc[-1]['close'],
+            'units': position,
+            'balance': balance
+        })
+    
     pd.DataFrame(trade_history).to_csv('realtime_trades.csv', index=False)
 
 # Generar gráficos interactivos
 def generate_figure(data, timeframe):
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=data['time'], y=data['close'],
-        mode='lines', name=f'Original ({timeframe})',
-        line=dict(color='yellow'), opacity=0.5
+        x=data['time'], 
+        y=data['close'],
+        mode='lines', 
+        name=f'Original ({timeframe})',
+        line=dict(color='yellow'),
+        opacity=0.5
     ))
     fig.add_trace(go.Scatter(
-        x=data['time'], y=data['smoothed_close'],
-        mode='lines', name=f'Suavizado ({timeframe})',
+        x=data['time'], 
+        y=data['smoothed_close'],
+        mode='lines', 
+        name=f'Suavizado ({timeframe})',
         line=dict(color='blue')
     ))
     fig.add_trace(go.Scatter(
-        x=data['time'][data['signal'] == 1], y=data['smoothed_close'][data['signal'] == 1],
-        mode='markers', name='Compra',
+        x=data['time'][data['signal'] == 1], 
+        y=data['smoothed_close'][data['signal'] == 1],
+        mode='markers', 
+        name='Compra',
         marker=dict(color='green', size=6)
     ))
     fig.add_trace(go.Scatter(
-        x=data['time'][data['signal'] == 0], y=data['smoothed_close'][data['signal'] == 0],
-        mode='markers', name='Venta',
+        x=data['time'][data['signal'] == 0], 
+        y=data['smoothed_close'][data['signal'] == 0],
+        mode='markers', 
+        name='Venta',
         marker=dict(color='red', size=6)
     ))
     fig.add_trace(go.Scatter(
-        x=data['time'][~data['change_points'].isna()], y=data['change_points'].dropna(),
-        mode='markers', name='Cambios de Señal',
+        x=data['time'][~data['change_points'].isna()], 
+        y=data['change_points'].dropna(),
+        mode='markers', 
+        name='Cambios de Señal',
         marker=dict(color='orange', size=8, symbol='x')
     ))
     fig.update_layout(
@@ -122,50 +188,70 @@ def generate_figure(data, timeframe):
 
 # Crear aplicación Dash
 app = Dash(__name__)
+
 app.layout = html.Div([
-    dcc.Interval(id='update-interval', interval=60*1000),  # Actualizar cada 60 segundos
-    dcc.Dropdown(
-        id='timeframe-selector',
-        options=[{'label': tf, 'value': tf} for tf in file_paths.keys()],
-        value='D1',
-        clearable=False
-    ),
-    html.Div(id='graphs-and-table')
+    # Intervalo de actualización cada 60 segundos
+    dcc.Interval(id='update-interval', interval=60 * 1000),
+
+    # Contenedor de gráficos en una sola fila
+    html.Div(
+        id='graphs-container',
+        style={'display': 'flex', 'flex-direction': 'row'}  # Los 3 gráficos se muestran en horizontal
+    )
 ])
 
-# Callback para actualizar gráficos y tablas
+# Callback para actualizar los 3 gráficos
 @app.callback(
-    Output('graphs-and-table', 'children'),
-    Input('timeframe-selector', 'value'),
+    Output('graphs-container', 'children'),
     Input('update-interval', 'n_intervals')
 )
-def update_content(selected_timeframe, n_intervals):
+def update_graphs(n_intervals):
+    # Símbolo de tu activo
     symbol = 'Volatility 100 Index'
-    update_data(symbol, selected_timeframe, file_paths[selected_timeframe])
-    data = process_data(file_paths[selected_timeframe])
-    if data.empty:
-        return html.Div("No se pudieron cargar los datos.")
-    simulate_trading(data)
-    figure = generate_figure(data, selected_timeframe)
+    
+    # Lista para ir almacenando cada "panel" (gráfico + texto)
+    graph_list = []
+    
+    for timeframe in file_paths.keys():
+        # 1. Actualizar datos
+        update_data(symbol, timeframe, file_paths[timeframe])
+        
+        # 2. Procesar datos
+        data = process_data(file_paths[timeframe])
+        
+        if data.empty:
+            graph_list.append(
+                html.Div(
+                    f"No se pudieron cargar los datos para {timeframe}",
+                    style={'color': 'red', 'margin': '10px', 'width': '33%'}
+                )
+            )
+        else:
+            # 3. Simular trading
+            simulate_trading(data)
+            
+            # 4. Generar figura
+            fig = generate_figure(data, timeframe)
 
-    return html.Div([
-        dcc.Graph(figure=figure),
-        dash_table.DataTable(
-            id=f'trade-table-{selected_timeframe}',
-            columns=[
-                {'name': 'Time', 'id': 'time'},
-                {'name': 'Action', 'id': 'action'},
-                {'name': 'Price', 'id': 'price'},
-                {'name': 'Units', 'id': 'units'},
-                {'name': 'Balance', 'id': 'balance'}
-            ],
-            data=trade_history,
-            row_selectable='multi',
-            style_table={'height': '300px', 'overflowY': 'auto'},
-            style_header={'backgroundColor': 'rgb(30, 30, 30)', 'color': 'white'},
-            style_cell={'backgroundColor': 'rgb(50, 50, 50)', 'color': 'white'}
-        )
-    ])
+            # 5. Calcular la métrica de distancias
+            distances = data['signal_distance'].dropna()
+            if not distances.empty:
+                avg_distance = distances.mean()
+            else:
+                avg_distance = 0
+            
+            # 6. Crear un contenedor con el gráfico y el texto informativo
+            graph_container = html.Div([
+                dcc.Graph(figure=fig),
+                html.Div(
+                    f"Distancia promedio tras el cambio de señal: {avg_distance:.4f}",
+                    style={'textAlign': 'center', 'marginTop': '10px'}
+                )
+            ], style={'width': '33%', 'margin': '0 5px'})
+            
+            graph_list.append(graph_container)
+    
+    return graph_list
 
 # Ejecutar aplicación
 if __name__ == '__main__':

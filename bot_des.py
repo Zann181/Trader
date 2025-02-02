@@ -29,8 +29,10 @@ tendency = None
 # Función para obtener datos en tiempo real
 def get_real_time_data(symbol, timeframe, num_candles=1400):
     timeframe_map = {
+        'M1': mt5.TIMEFRAME_M1,
         'M5': mt5.TIMEFRAME_M5,
-        'M10': mt5.TIMEFRAME_M10
+        'H1': mt5.TIMEFRAME_H1,
+        'H4': mt5.TIMEFRAME_H4,
     }
     rates = mt5.copy_rates_from_pos(symbol, timeframe_map[timeframe], 0, num_candles)
     if rates is None:

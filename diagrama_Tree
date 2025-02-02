@@ -1,0 +1,127 @@
+Raíz: Señal de Compra en M5
+│
+├─ **1. Confirmación Inicial en M5**  
+│  ├─ 1.1. **Derivada ≈ 0** (Pendiente entre -0.0005 y 0.0005 en regresión lineal de 10 velas).  
+│  ├─ 1.2. **Patrón de Velas**:  
+│  │  ├─ a) Martillo/Invertido con cierre > 50% del cuerpo → ✅  
+│  │  ├─ b) Engulfing alcista con volumen 2× mayor → ✅  
+│  │  └─ c) Ninguno → ⬇️ Esperar 3 velas para nueva confirmación.  
+│  ├─ 1.3. **Volumen**:  
+│  │  ├─ a) Volumen actual > Media móvil de volumen (20 periodos) × 1.3 → ✅  
+│  │  └─ b) Volumen bajo → ⬇️ Esperar aumento en próxima vela.  
+│  └─ 1.4. **Soporte Dinámico**:  
+│     ├─ a) Precio toca banda inferior de Bollinger (20,2) → ✅  
+│     └─ b) Precio alejado de soporte → ❌ Descartar.  
+│
+├─ **2. Confirmación en 1H (Jerarquía Superior)**  
+│  ├─ 2.1. **Tendencia 1H**:  
+│  │  ├─ a) EMA 9 > EMA 20 → ✅ (Tendencia alcista corto plazo).  
+│  │  ├─ b) EMA 20 > EMA 50 → ✅ (Tendencia media alcista).  
+│  │  └─ c) Tendencia bajista → ⬇️ Esperar cambio en MACD (2 velas).  
+│  ├─ 2.2. **Niveles Clave 1H**:  
+│  │  ├─ a) Precio rebota en Fibonacci 61.8% → ✅.  
+│  │  └─ b) Precio en zona de resistencia → ⬇️ Esperar ruptura con volumen.  
+│  └─ 2.3. **Momento 1H**:  
+│     ├─ a) RSI 1H > 45 y en ascenso → ✅.  
+│     └─ b) RSI < 40 → ⬇️ Esperar divergencia alcista (2 velas).  
+│
+├─ **3. Contexto Diario (1D)**  
+│  ├─ 3.1. **Tendencia Macro**:  
+│  │  ├─ a) Precio > EMA 200 → ✅ (Entrar en dirección tendencia).  
+│  │  └─ b) Precio < EMA 200 → ⬇️ Validar con volumen acumulado en soporte.  
+│  ├─ 3.2. **Accumulation/Distribution**:  
+│  │  ├─ a) A/D en aumento → ✅ (Acumulación institucional).  
+│  │  └─ b) A/D plano → ⬇️ Esperar 2 días para confirmación.  
+│  └─ 3.3. **Eventos Externos**:  
+│     ├─ a) Sin noticias en próximas 24h → ✅.  
+│     └─ b) FED Meeting hoy → ❌ No operar.  
+│
+├─ **4. Entrada con Mecanismos de Espera**  
+│  ├─ 4.1. **Tipo de Entrada**:  
+│  │  ├─ a) Entrada Inmediata: Solo si M5, 1H y 1D confirman → ✅.  
+│  │  ├─ b) Entrada en Pullback:  
+│  │  │  ├─ i) Esperar retorno a EMA 20 en M5 → Validar con volumen ↓ 30%.  
+│  │  │  └─ ii) Si pullback > 50% del movimiento → ❌ Cancelar.  
+│  │  └─ c) Entrada Gradual:  
+│  │     ├─ i) 50% al inicio, 50% tras cierre alcista en 1H → ✅.  
+│  │     └─ ii) Si precio no confirma en 4 velas → Cerrar 50%.  
+│  └─ 4.2. **Tamaño de Posición**:  
+│     ├─ a) Basado en distancia al SL:  
+│     │  ├─ i) SL = Último swing low M5 - 0.5×ATR(14).  
+│     │  └─ ii) Tamaño = (1% capital) / (Entrada - SL).  
+│     └─ b) Ajuste por volatilidad:  
+│         ├─ i) Si ATR(14) > 2×Media → Reducir posición 50%.  
+│         └─ ii) Si ATR < Media → Posición estándar.  
+│
+├─ **5. Gestión Post-Compra (Evitar Cierre Prematuro)**  
+│  ├─ 5.1. **Take Profit Dinámico**:  
+│  │  ├─ a) TP1: 1:1 Risk-Reward → Bloquear 30% de la posición.  
+│  │  ├─ b) TP2: Zona de resistencia 1H → Bloquear 50%.  
+│  │  └─ c) TP3: Seguir con trailing stop de 50% del ATR(14).  
+│  ├─ 5.2. **Reglas de Espera Antes de Cerrar**:  
+│  │  ├─ a) Si precio retrocede < 50% del movimiento inicial → Esperar 5 velas M5.  
+│  │  ├─ b) Si volumen en retroceso < Media volumen → No cerrar.  
+│  │  └─ c) Si RSI M5 > 40 durante pullback → Mantener posición.  
+│  └─ 5.3. **Stop Loss Inteligente**:  
+│     ├─ a) SL inicial fijo (nunca moverlo a pérdidas).  
+│     ├─ b) SL móvil:  
+│     │  ├─ i) Solo ajustar si precio sube > 2×ATR(14).  
+│     │  └─ ii) Nuevo SL = Máximo reciente - 1×ATR(14).  
+│     └─ c) SL por tiempo:  
+│         ├─ i) Si precio no avanza en 8 velas M5 → Cerrar 50%.  
+│         └─ ii) Si precio lateraliza > 1H → Cerrar total.  
+│
+└─ **6. Robustez Post-Entrada**  
+   ├─ 6.1. **Confirmación de Fuerza**:  
+   │  ├─ a) Cierre consecutivo de 3 velas M5 sobre EMA 9 → ✅.  
+   │  └─ b) Vela de impulso > 2×ATR(14) → Añadir a posición (+20%).  
+   ├─ 6.2. **Gestión de Volatilidad**:  
+   │  ├─ a) Si ATR(14) aumenta > 30% → Trailing stop + 0.5×ATR.  
+   │  └─ b) Si gap de precios > 1% → Esperar 2 velas antes de actuar.  
+   └─ 6.3. **Señales Contrarias**:  
+      ├─ a) Si 1H genera señal de venta → Validar con volumen y RSI.  
+      └─ b) Si divergencia bajista en MACD → Reducir posición 50%.  
+
+---
+
+### **Ejemplo de Flujo con Espera**  
+1. **Señal M5**: Derivada ≈ 0 + martillo en soporte + volumen alto.  
+2. **Confirmación 1H**: EMA 9 > EMA 20, pero RSI 1H = 43 (no > 45).  
+   → **Esperar 2 velas 1H**:  
+   - Si RSI sube a 46 en la próxima vela → ✅.  
+   - Si RSI baja a 40 → ❌ Cancelar.  
+3. **Entrada Gradual**:  
+   - 50% al entrar, 50% tras cierre de vela 1H sobre EMA 9.  
+4. **Gestión Post-Compra**:  
+   - Precio retrocede 30% del movimiento inicial, pero volumen ↓ 40% → **Esperar 5 velas M5**.  
+   - En vela 3: precio recupera EMA 9 con volumen ↑ → Mantener posición.  
+5. **Cierre Parcial**:  
+   - TP1 alcanzado (1:1), pero TP2 aún lejano → Trailing stop activado (2×ATR).  
+
+---
+
+### **Mecanismos Clave para Evitar Cierres Prematuros**  
+1. **Espera por Confirmación de Velas**:  
+   - No cerrar en la primera vela de retroceso. Requerir 2-3 cierres consecutivos en contra.  
+2. **Filtro de Volumen en Retrocesos**:  
+   - Si el volumen es bajo durante el pullback, asumir corrección técnica (no cerrar).  
+3. **Tiempo Mínimo en Posición**:  
+   - Obligar a mantener la posición al menos 6 velas M5 (30 minutos) salvo violación de SL.  
+4. **Trailing Stop Adaptativo**:  
+   - Solo ajustar el SL cada 3 velas M5 para evitar "saltar" por ruido.  
+5. **Divergencias Positivas**:  
+   - Si el precio baja pero RSI/MACD suben → Esperar reversión en 2-3 velas.  
+
+---
+
+### **Herramientas para Implementar**  
+- **Indicadores**:  
+  - `RSI + MACD` para divergencias.  
+  - `Volume Profile` para ver niveles de soporte con alta liquidez.  
+- **Scripts (Ej. TradingView)**:  
+  ```pine
+  // Ejemplo de condición de espera
+  waitCondition = close > ta.ema(close, 9) and volume > ta.sma(volume, 20) * 1.2
+  if (waitCondition)
+      strategy.entry("Buy", strategy.long)
+      strategy.exit("TP", "Buy", trail_points = 2 * ta.atr(14), trail_offset = ta.atr(14))
